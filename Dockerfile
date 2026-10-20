@@ -53,16 +53,8 @@ WORKDIR /src
 COPY . .
 COPY --from=frontend /src/web/dist ./web/dist
 RUN ECC_API_BINARY=/usr/local/bin/ecc-crm-api ECC_RUN_HTTP_TESTS=1 python3 -m unittest discover -s tests -p 'test_*.py' -v
-RUN python3 -c 'import base64, hashlib, json, pathlib
-web = pathlib.Path('\''/app/web'\'')
-migrations = pathlib.Path('\''/app/migrations'\'')
-def digest(path):
-    return base64.urlsafe_b64encode(hashlib.sha256(path.read_bytes()).digest()).decode().rstrip('\''='\'')
-assets = ["index.html","main.js","bootstrap.js","css/app.css"]
-manifest = {'\''contract'\'': '\''ecc-crm-20261019-v1'\'', '\''verified'\'': True, '\''backend'\'': digest(pathlib.Path('\''/usr/local/bin/ecc-crm-api'\'')), '\''assets'\'': {name: digest(web / name) for name in assets}, '\''migrations'\'': {p.name: digest(p) for p in sorted(migrations.glob('\''*.sql'\''))}}
-(web / '\''release.json'\'').write_text(json.dumps(manifest, indent=2) + '\''\n'\'')
-'
+RUN python3 -c 'exec("import base64, hashlib, json, pathlib\nweb = pathlib.Path('\''/app/web'\'')\nmigrations = pathlib.Path('\''/app/migrations'\'')\ndef digest(path):\n    return base64.urlsafe_b64encode(hashlib.sha256(path.read_bytes()).digest()).decode().rstrip('\''='\'')\nassets = [\"index.html\",\"main.js\",\"bootstrap.js\",\"css/app.css\"]\nmanifest = {'\''contract'\'': '\''ecc-crm-20261019-v1'\'', '\''verified'\'': True, '\''backend'\'': digest(pathlib.Path('\''/usr/local/bin/ecc-crm-api'\'')), '\''assets'\'': {name: digest(web / name) for name in assets}, '\''migrations'\'': {p.name: digest(p) for p in sorted(migrations.glob('\''*.sql'\''))}}\n(web / '\''release.json'\'').write_text(json.dumps(manifest, indent=2) + '\''\\n'\'')\n")'
 
 FROM runtime AS release
 COPY --from=verification /app/web/release.json /app/web/release.json
-RUN ecc-crm-api verify-release
+RUN APP_ENV=development ecc-crm-api verify-release
