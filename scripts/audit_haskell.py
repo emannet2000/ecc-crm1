@@ -23,7 +23,10 @@ def audit(plan, database):
     packages = {(pkg['pkg-name'], pkg['pkg-version']) for pkg in plan['install-plan']}
     compiler = plan['compiler-id'].removeprefix('ghc-')
     findings = []
-    paths = list(pathlib.Path(database).rglob('HSEC-*.md'))
+    root = pathlib.Path(database)
+    # Reserved IDs are empty placeholders, not published advisories.
+    paths = [path for path in root.rglob('HSEC-*.md')
+             if 'reserved' not in path.relative_to(root).parts]
     if not paths:
         raise ValueError('Security advisory database is empty')
     for path in paths:
