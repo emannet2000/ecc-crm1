@@ -9,7 +9,7 @@ COPY web/public ./public
 COPY tests/state.test.cjs tests/ui.test.cjs /src/tests/
 RUN mkdir -p dist/css && elm make src/Main.elm --optimize --output=dist/main.js && cp public/index.html public/bootstrap.js dist/ && cp public/css/app.css dist/css/
 RUN apt-get update && apt-get install -y --no-install-recommends chromium && rm -rf /var/lib/apt/lists/*
-RUN node --test /src/tests/state.test.cjs && CHROME_PATH=/usr/bin/chromium node --test /src/tests/ui.test.cjs
+RUN node --test /src/tests/state.test.cjs && CHROME_PATH=/usr/bin/chromium CHROME_SINGLE_PROCESS=1 node --test /src/tests/ui.test.cjs
 
 FROM ${HASKELL_IMAGE} AS backend
 # Match the SQLite headers to the security-updated library in this GHC image.
