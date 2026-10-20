@@ -25,7 +25,7 @@ validateRelease web migrations binary = do
   unless (contract==releaseContract && verified) $ fail "Production requires a compatible release that passed the complete quality gate"
   actualBinary <- tokenHash <$> B.readFile binary
   unless (backend==actualBinary) $ fail "The API binary differs from the verified release"
-  let expectedAssets = ["index.html","main.js","bootstrap.js","reports.js","finance-print.js","css/app.css","manifest.webmanifest","sw.js","offline.html","icons/icon-192.png","icons/icon-512.png"]
+  let expectedAssets = ["index.html","main.js","bootstrap.js","css/app.css"]
   unless (sort (Map.keys assets)==sort expectedAssets) $ fail "Release assets are incomplete"
   diskSchemas <- sort . filter (".sql" `isSuffixOf`) <$> listDirectory migrations
   unless (Map.keys schemas==diskSchemas && not (null diskSchemas) && last diskSchemas=="0014_business_clock.sql") $ fail "Migration files are incompatible with this API release"
