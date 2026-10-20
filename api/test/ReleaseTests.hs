@@ -33,7 +33,7 @@ run = do
   bracket (createDirectory root >> pure root) removeDirectoryRecursive $ \_ -> do
     createDirectory web
     createDirectory schemas
-    let names=["index.html","main.js","bootstrap.js","reports.js","finance-print.js","css/app.css","manifest.webmanifest","sw.js","offline.html","icons/icon-192.png","icons/icon-512.png"]
+    let names=["index.html","main.js","bootstrap.js","css/app.css"]
     assets<-Map.fromList <$> forM names (\name->do
       let file=web </> name
       createDirectoryIfMissing True (takeDirectory file)
