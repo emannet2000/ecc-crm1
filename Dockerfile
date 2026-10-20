@@ -9,7 +9,13 @@ COPY web/public ./public
 RUN mkdir -p dist/css && elm make src/Main.elm --optimize --output=dist/main.js && cp public/index.html public/bootstrap.js dist/ && cp public/css/app.css dist/css/
 
 FROM ${HASKELL_IMAGE} AS backend
-RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends libsqlite3-dev pkg-config && rm -rf /var/lib/apt/lists/*
+# The GHC 9.6.6 image uses Bullseye; use its archived package sources.
+RUN rm -f /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources && \
+    printf '%s\n' 'deb http://archive.debian.org/debian bullseye main' > /etc/apt/sources.list && \
+    rm -rf /var/lib/apt/lists/* && \
+    apt-get -o Acquire::Retries=3 update && \
+    apt-get -o Acquire::Retries=3 install -y --no-install-recommends libsqlite3-dev pkg-config ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
 WORKDIR /src/api
 COPY api/ecc-crm-api.cabal api/cabal.project api/cabal.project.freeze ./
 RUN cabal update && cabal build --only-dependencies
