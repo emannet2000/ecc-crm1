@@ -72,9 +72,9 @@ class Browser {
     await this.send('Fetch.fulfillRequest',{requestId:msg.params.requestId,responseCode:status,responseHeaders:[{name:'Content-Type',value:mime}],body:body.toString('base64')});
   }
   async start(){await this.send('Browser.getVersion',{},null);const {targetId}=await this.send('Target.createTarget',{url:'about:blank'},null);const {sessionId}=await this.send('Target.attachToTarget',{targetId,flatten:true},null);this.session=sessionId;await this.send('Runtime.enable');await this.send('Page.enable');await this.send('Fetch.enable',{patterns:[{urlPattern:'*'}]});await this.send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});await this.send('Page.navigate',{url:'http://ecc.test/'});}
-  async evaluate(expression){const r=await this.send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw Error(JSON.stringify(r.exceptionDetails));return r.result.value;}
+  async evaluate(expression){const r=await this.send('Runtime.evaluate',{expression:'{\n'+expression+'\n}',returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw Error(JSON.stringify(r.exceptionDetails));return r.result.value;}
   async wait(expression){for(let i=0;i<100;i++){if(await this.evaluate(expression))return;await delay(50);}throw Error('Not found: '+expression+'\n'+await this.evaluate('document.body.innerText'));}
-  async clickText(text){await this.evaluate(`Array.from(document.querySelectorAll('button,a')).find(x=>x.textContent.trim()===${JSON.stringify(text)}).click()`);}
+  async clickText(text){await this.evaluate(`Array.from(document.querySelectorAll('button,a')).find(x=>x.textContent.trim()===${JSON.stringify(text)}).click()`);await this.evaluate('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');}
   async screenshot(name){const result=await this.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});fs.writeFileSync(path.join(os.tmpdir(),name),Buffer.from(result.data,'base64'));}
   async close(){for(const p of this.pending.values()){clearTimeout(p.timer);p.reject(Error('Browser closed'));}this.pending.clear();this.child.kill('SIGTERM');await delay(200);fs.rmSync(this.dir,{recursive:true,force:true,maxRetries:3});}
 }
@@ -137,7 +137,7 @@ test('workspace UI: authentication, navigation, responsive layout and operations
     await t.test('task board has three clearly labeled workflow columns',async()=>{
       await b.clickText('Tasks');
       await b.wait(`document.querySelectorAll('.task-board .task-column').length === 3`);
-      assert.deepEqual(await b.evaluate(`Array.from(document.querySelectorAll('.task-column h3')).map(x=>x.textContent.trim())`),['Pending','In Progress','Done']);
+      assert.deepEqual(await b.evaluate(`Array.from(document.querySelectorAll('.task-column')).map(x=>x.querySelector('h3').textContent.trim())`),['Pending','In Progress','Done']);
     });
     await t.test('reminders, duplicates, archive and system pages render',async()=>{
       for(const [nav,content] of [['Reminders','Follow up: Maya Chen'],['Duplicates','maya@example.com'],['Archive','Archived contact'],['System','Active sessions']]){
