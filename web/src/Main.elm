@@ -464,27 +464,27 @@ updateHelp msg model =
             let
                 next =
                     { model
-                | url = url
-                , featureSearch = ""
-                , featureForm = Features.defaults (String.dropLeft 6 url.path)
-                , featureResult = E.null
-                , pageOffset = 0
-                , selected = Set.empty
-                , pageLoading = True
-                , pageError = ""
-                , opsData = []
-                , inlineOwner = ownerForUrl url
-                , featureBaseline = Dict.empty
-                , conflictCurrent = E.null
-                , checklistFile = Nothing
-                , featureBusy = False
-                , featureError = ""
-                , notifOpen = False
-                , detail = Nothing
-                , clientDetail = Nothing
-                , pendingDoc = Nothing
-                , pendingImport = Nothing
-              }
+                        | url = url
+                        , featureSearch = ""
+                        , featureForm = Features.defaults (String.dropLeft 6 url.path)
+                        , featureResult = E.null
+                        , pageOffset = 0
+                        , selected = Set.empty
+                        , pageLoading = True
+                        , pageError = ""
+                        , opsData = []
+                        , inlineOwner = ownerForUrl url
+                        , featureBaseline = Dict.empty
+                        , conflictCurrent = E.null
+                        , checklistFile = Nothing
+                        , featureBusy = False
+                        , featureError = ""
+                        , notifOpen = False
+                        , detail = Nothing
+                        , clientDetail = Nothing
+                        , pendingDoc = Nothing
+                        , pendingImport = Nothing
+                    }
             in
             ( next
             , if url.path == "/portal" then
