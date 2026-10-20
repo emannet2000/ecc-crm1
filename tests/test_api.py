@@ -105,7 +105,14 @@ class ApiTests(unittest.TestCase):
     def lead(self, **values):
         body = dict(nlFullName='Integration ' + uuid.uuid4().hex[:8], nlService='Student Visa', nlDestination='Canada')
         body.update(values)
-        status, lead, _ = self.admin.request('POST', '/api/leads', body)
+        # Admission rejects before any mutation; retry only those explicit busy responses.
+        for attempt in range(8):
+            status, lead, headers = self.admin.request('POST', '/api/leads', body)
+            busy = status == 503 and isinstance(lead, dict) and lead.get('error') in (
+                'Upload capacity busy. Try again shortly.', 'API busy. Try again shortly.')
+            if not busy or attempt == 7:
+                break
+            time.sleep(max(0.1, min(2.0, float(headers.get('Retry-After', '1')))))
         self.assertEqual(status, 200, lead)
         return lead
 
