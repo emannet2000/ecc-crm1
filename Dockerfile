@@ -6,7 +6,10 @@ WORKDIR /src/web
 COPY web/elm.json ./
 COPY web/src ./src
 COPY web/public ./public
+COPY tests/state.test.cjs tests/ui.test.cjs /src/tests/
 RUN mkdir -p dist/css && elm make src/Main.elm --optimize --output=dist/main.js && cp public/index.html public/bootstrap.js dist/ && cp public/css/app.css dist/css/
+RUN apt-get update && apt-get install -y --no-install-recommends chromium && rm -rf /var/lib/apt/lists/*
+RUN node --test /src/tests/state.test.cjs && CHROME_PATH=/usr/bin/chromium node --test /src/tests/ui.test.cjs
 
 FROM ${HASKELL_IMAGE} AS backend
 # Match the SQLite headers to the security-updated library in this GHC image.
@@ -25,9 +28,11 @@ COPY api/ecc-crm-api.cabal api/cabal.project api/cabal.project.freeze ./
 RUN cabal update && cabal build --only-dependencies
 COPY api/app ./app
 COPY api/src ./src
-RUN cabal build && cp "$(cabal list-bin exe:ecc-crm-api)" /usr/local/bin/ecc-crm-api
+COPY api/test ./test
+COPY api/migrations ./migrations
+RUN cabal test all && cabal build && cp "$(cabal list-bin exe:ecc-crm-api)" /usr/local/bin/ecc-crm-api
 
-FROM debian:bookworm-slim@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587
+FROM debian:bookworm-slim@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587 AS runtime
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends libsqlite3-0 libgmp10 ca-certificates curl python3 && rm -rf /var/lib/apt/lists/* && useradd --system --uid 10001 app && mkdir -p /data && chown app /data
 WORKDIR /app
 COPY --from=backend /usr/local/bin/ecc-crm-api /usr/local/bin/
@@ -40,3 +45,24 @@ USER app
 EXPOSE 4000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s CMD curl --fail http://127.0.0.1:4000/api/ready || exit 1
 ENTRYPOINT ["ecc-crm-api"]
+
+# Generate the manifest only after the Haskell, Elm state, browser, and HTTP/database tests pass.
+FROM runtime AS verification
+USER root
+WORKDIR /src
+COPY . .
+COPY --from=frontend /src/web/dist ./web/dist
+RUN ECC_API_BINARY=/usr/local/bin/ecc-crm-api ECC_RUN_HTTP_TESTS=1 python3 -m unittest discover -s tests -p 'test_*.py' -v
+RUN python3 -c 'import base64, hashlib, json, pathlib
+web = pathlib.Path('\''/app/web'\'')
+migrations = pathlib.Path('\''/app/migrations'\'')
+def digest(path):
+    return base64.urlsafe_b64encode(hashlib.sha256(path.read_bytes()).digest()).decode().rstrip('\''='\'')
+assets = ["index.html","main.js","bootstrap.js","css/app.css"]
+manifest = {'\''contract'\'': '\''ecc-crm-20261019-v1'\'', '\''verified'\'': True, '\''backend'\'': digest(pathlib.Path('\''/usr/local/bin/ecc-crm-api'\'')), '\''assets'\'': {name: digest(web / name) for name in assets}, '\''migrations'\'': {p.name: digest(p) for p in sorted(migrations.glob('\''*.sql'\''))}}
+(web / '\''release.json'\'').write_text(json.dumps(manifest, indent=2) + '\''\n'\'')
+'
+
+FROM runtime AS release
+COPY --from=verification /app/web/release.json /app/web/release.json
+RUN ecc-crm-api verify-release
