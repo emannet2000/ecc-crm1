@@ -384,7 +384,7 @@ expectJson toMsg decoder =
             Http.NetworkError_ -> Err Http.NetworkError
             Http.BadStatus_ metadata body ->
                 if List.member metadata.statusCode [401,409] then
-                    Err (Http.BadStatus 401)
+                    Err (Http.BadStatus metadata.statusCode)
                 else
                     Err (Http.BadBody (D.decodeString (D.field "error" D.string) body |> Result.withDefault ("Request failed (" ++ String.fromInt metadata.statusCode ++ ")")))
             Http.GoodStatus_ _ body -> D.decodeString decoder body |> Result.mapError (D.errorToString >> Http.BadBody)
