@@ -11,7 +11,7 @@ RUN mkdir -p dist/css && elm make src/Main.elm --optimize --output=dist/main.js 
 FROM ${HASKELL_IMAGE} AS backend
 # The GHC 9.6.6 image uses Bullseye; use its archived package sources.
 RUN rm -f /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources && \
-    printf '%s\n' 'deb http://archive.debian.org/debian bullseye main' > /etc/apt/sources.list && \
+    printf '%s\n' 'deb http://archive.debian.org/debian bullseye main' 'deb http://archive.debian.org/debian-security bullseye-security updates/main' > /etc/apt/sources.list && \
     rm -rf /var/lib/apt/lists/* && \
     apt-get -o Acquire::Retries=3 update && \
     apt-get -o Acquire::Retries=3 install -y --no-install-recommends libsqlite3-dev pkg-config ca-certificates && \
