@@ -461,7 +461,9 @@ updateHelp msg model =
                     ( model, Nav.load href )
 
         UrlChanged url ->
-            ( { model
+            let
+                next =
+                    { model
                 | url = url
                 , featureSearch = ""
                 , featureForm = Features.defaults (String.dropLeft 6 url.path)
@@ -483,16 +485,18 @@ updateHelp msg model =
                 , pendingDoc = Nothing
                 , pendingImport = Nothing
               }
+            in
+            ( next
             , if url.path == "/portal" then
                 case url.fragment of
                     Just fragment -> Task.perform (always (PortalExchange (String.dropLeft 6 fragment))) (Task.succeed ())
-                    Nothing -> Api.portalGet ctx (acceptLoad { model | url = url, featureSearch = "", pageOffset = 0 } PortalLoaded)
+                    Nothing -> Api.portalGet ctx (acceptLoad next PortalLoaded)
 
               else if model.user == Nothing then
                 Cmd.none
 
               else
-                routeCmd { model | url = url, pageOffset = 0, featureSearch = "" } (State.routeOf url)
+                routeCmd next (State.routeOf url)
             )
 
         GotStoredToken t ->
