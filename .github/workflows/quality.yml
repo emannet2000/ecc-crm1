@@ -31,7 +31,6 @@ jobs:
         with:
           repository: haskell/security-advisories
           path: .security-advisories
-      - run: python3 scripts/audit_haskell.py api/dist-newstyle/cache/plan.json .security-advisories/advisories
       - run: cabal test all
         working-directory: api
       - run: echo "ECC_API_BINARY=$(cd api && cabal list-bin exe:ecc-crm-api)" >> "$GITHUB_ENV"
@@ -42,6 +41,9 @@ jobs:
       - run: node --test tests/ui.test.cjs
         env:
           CHROME_PATH: /usr/bin/google-chrome
+      - name: Audit Haskell dependencies
+        if: always() && !cancelled()
+        run: python3 scripts/audit_haskell.py api/dist-newstyle/cache/plan.json .security-advisories/advisories
       - uses: actions/upload-artifact@v4
         if: always()
         with:
