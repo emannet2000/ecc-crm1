@@ -232,12 +232,18 @@ class SQLiteTests(unittest.TestCase):
             self.conn.rollback()
 
     def test_every_complete_static_query_prepares_against_sqlite(self):
+        # EXPLAIN needs the same zero-argument function signature as the API.
+        self.conn.create_function("business_offset", 0, lambda: "+08:00")
         self.conn.execute("CREATE TEMP TABLE request_context (id INTEGER PRIMARY KEY,actor_id INTEGER,role TEXT,assigned_only TEXT)")
         checked = 0
         for path in (ROOT / 'api/src/ECC').glob('*.hs'):
             if path.stem not in ('DB','Routes','Security','Seed','WorkflowSupport','Workflows','Operations','Portal','MFA'):
                 continue
-            for match in re.finditer(r'"(?:[^"\\]|\\[\s\S])*"', path.read_text()):
+            source = path.read_text()
+            for match in re.finditer(r'"(?:[^"\\]|\\[\s\S])*"', source):
+                # Concatenated query prefixes are exercised through the real API.
+                if source[match.end():].lstrip().startswith(("<>", "++")):
+                    continue
                 sql = re.sub(r'\\\s*\\', '', match.group()[1:-1]).replace('\\"', '"')
                 if not re.match(r'^(SELECT|INSERT|UPDATE|DELETE|WITH|PRAGMA)\b', sql):
                     continue
