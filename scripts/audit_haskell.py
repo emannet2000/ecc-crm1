@@ -22,7 +22,9 @@ def affected(current, ranges):
 def audit(plan, database):
     packages = {(pkg['pkg-name'], pkg['pkg-version']) for pkg in plan['install-plan']}
     compiler = plan['compiler-id'].removeprefix('ghc-')
+    target_os = plan.get('os')
     findings = []
+    seen = set()
     root = pathlib.Path(database)
     # Reserved IDs are empty placeholders, not published advisories.
     paths = [path for path in root.rglob('HSEC-*.md')
@@ -34,9 +36,15 @@ def audit(plan, database):
         if not match:
             raise ValueError('Missing advisory metadata: ' + str(path))
         data = tomllib.loads(match[1])
+        advisory_id = data['advisory']['id']
+        if advisory_id in seen:
+            continue
+        seen.add(advisory_id)
         if data['advisory'].get('withdrawn'):
             continue
         for entry in data.get('affected', []):
+            if target_os and entry.get('os') and target_os not in entry['os']:
+                continue
             candidates = [(name, ver) for name, ver in packages if name == entry.get('package')]
             if 'ghc-component' in entry:
                 candidates.append((entry['ghc-component'], compiler))
