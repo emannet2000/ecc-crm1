@@ -1,0 +1,86 @@
+name: Quality gate
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: haskell-actions/setup@v2
+        with:
+          ghc-version: '9.6.6'
+          cabal-version: '3.10.3.0'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: browser-actions/setup-chrome@v2
+        id: chrome
+        with:
+          chrome-version: stable
+      - name: Install SQLite build headers
+        run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev
+      - name: Install Elm compiler
+        run: npm install --global elm@0.19.1-6
+      - name: Locate project
+        id: project
+        shell: bash
+        run: |
+          if [[ -f ecc-crm-api.cabal ]]; then
+            echo 'dir=.' >> "$GITHUB_OUTPUT"
+          elif [[ -f api/ecc-crm-api.cabal ]]; then
+            echo 'dir=api' >> "$GITHUB_OUTPUT"
+          else
+            echo 'Cannot locate ecc-crm-api.cabal' >&2
+            exit 1
+          fi
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cabal/store
+            ~/.cabal/packages
+            ~/.elm
+          key: ${{ runner.os }}-ghc966-${{ hashFiles('**/cabal.project.freeze', '**/*.cabal', '**/elm.json') }}
+          restore-keys: ${{ runner.os }}-ghc966-
+      - name: Prepare portable build
+        working-directory: ${{ steps.project.outputs.dir }}
+        run: |
+          # Local files select this workstation's dynamic system packages/linker.
+          rm -f cabal.project.local
+          cabal update
+      - name: Build and run all checks
+        working-directory: ${{ steps.project.outputs.dir }}
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
+        run: |
+          set -o pipefail
+          bash scripts/check.sh 2>&1 | tee ci-results.log
+      - name: Package verified release
+        working-directory: ${{ steps.project.outputs.dir }}
+        run: python3 scripts/release.py package --binary "$(cabal list-bin exe:ecc-crm-api)" --output ecc-crm-release.tar.gz
+      - name: Upload verified release
+        uses: actions/upload-artifact@v4
+        with:
+          name: ecc-crm-release-${{ github.sha }}
+          path: '**/ecc-crm-release.tar.gz'
+          if-no-files-found: error
+      - name: Upload test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-diagnostics
+          if-no-files-found: ignore
+          path: |
+            **/ci-results.log
+            **/dist-newstyle/**/test/*.log
+            /tmp/ecc-*.png
