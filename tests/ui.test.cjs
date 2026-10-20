@@ -61,7 +61,7 @@ class Browser {
     }
     if(url.pathname==='/api/leads' && url.searchParams.get('q')) {
       const query=url.searchParams.get('q');
-      body=body.map(record=>({...record,fullName:query==='slow'?'Stale result':'Current result'}));
+      body=body.map(record=>({...record,fullName:query==='slow'?'Stale result':'Current result',email:query+'@example.com'}));
       if(query==='slow')await delay(1200);
     }
     if(url.pathname==='/api/archive') {
@@ -73,7 +73,7 @@ class Browser {
   }
   async start(){await this.send('Browser.getVersion',{},null);const {targetId}=await this.send('Target.createTarget',{url:'about:blank'},null);const {sessionId}=await this.send('Target.attachToTarget',{targetId,flatten:true},null);this.session=sessionId;await this.send('Runtime.enable');await this.send('Page.enable');await this.send('Fetch.enable',{patterns:[{urlPattern:'*'}]});await this.send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});await this.send('Page.navigate',{url:'http://ecc.test/'});}
   async evaluate(expression){const r=await this.send('Runtime.evaluate',{expression:'{\n'+expression+'\n}',returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw Error(JSON.stringify(r.exceptionDetails));return r.result.value;}
-  async wait(expression){for(let i=0;i<100;i++){if(await this.evaluate(expression))return;await delay(50);}throw Error('Not found: '+expression+'\n'+await this.evaluate('document.body.innerText'));}
+  async wait(expression){for(let i=0;i<100;i++){if(await this.evaluate('document.body && ('+expression+')'))return;await delay(50);}throw Error('Not found: '+expression+'\n'+await this.evaluate('document.body.innerText'));}
   async clickText(text){await this.evaluate(`Array.from(document.querySelectorAll('button,a')).find(x=>x.textContent.trim()===${JSON.stringify(text)}).click()`);await this.evaluate('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');}
   async screenshot(name){const result=await this.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});fs.writeFileSync(path.join(os.tmpdir(),name),Buffer.from(result.data,'base64'));}
   async close(){for(const p of this.pending.values()){clearTimeout(p.timer);p.reject(Error('Browser closed'));}this.pending.clear();this.child.kill('SIGTERM');await delay(200);fs.rmSync(this.dir,{recursive:true,force:true,maxRetries:3});}
