@@ -44,7 +44,15 @@ assert :: String -> Bool -> IO ()
 assert label condition = unless condition (fail label)
 main :: IO ()
 main = do
-  let staticApp = staticFiles "web/dist" (\_ respond -> respond (Wai.responseLBS status404 [] ""))
+  -- Isolated fixtures test MIME handling without requiring optional PWA assets.
+  temporary <- getTemporaryDirectory
+  suffix <- randomToken
+  let staticRoot = temporary </> ("ecc-static-" ++ B.unpack suffix)
+  createDirectory staticRoot
+  B.writeFile (staticRoot </> "main.js") (B.replicate 4096 'x')
+  B.writeFile (staticRoot </> "manifest.webmanifest") "{}"
+  B.writeFile (staticRoot </> "sw.js") "// fixture worker"
+  let staticApp = staticFiles staticRoot (\_ respond -> respond (Wai.responseLBS status404 [] ""))
   let compressedApp = gzip defaultGzipSettings { gzipFiles = GzipCompress } staticApp
   compressed <- WT.runSession (WT.request ((WT.setPath Wai.defaultRequest "/main.js") { Wai.requestHeaders = [("Accept-Encoding","gzip")] })) compressedApp
   assert "Elm bundle is compressed for browsers accepting gzip" (lookup "Content-Encoding" (WT.simpleHeaders compressed) == Just "gzip")
@@ -54,6 +62,7 @@ main = do
   assert "PWA worker served as JavaScript and revalidated" (lookup "Content-Type" (WT.simpleHeaders worker) == Just "application/javascript" && lookup "Cache-Control" (WT.simpleHeaders worker) == Just "no-cache")
   missingManifest <- WT.runSession (WT.request (WT.setPath Wai.defaultRequest "/missing.webmanifest")) staticApp
   assert "Missing manifest returns 404 instead of app HTML" (statusCode (WT.simpleStatus missingManifest) == 404)
+  removeDirectoryRecursive staticRoot
   let secret = "test-secret-for-auth-regressions-123"
   token <- makeToken secret 42
   second <- makeToken secret 42
