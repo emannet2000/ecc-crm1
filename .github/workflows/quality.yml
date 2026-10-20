@@ -63,7 +63,7 @@ jobs:
           name: release-image-identities
           path: release-images.json
       - name: Scan api image
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@6abccf398f78b4c337599c0656f933d91efb91a0
         with:
           image-ref: ecc-crm-api:release
           severity: HIGH,CRITICAL
@@ -71,7 +71,7 @@ jobs:
           scanners: vuln
           ignore-unfixed: false
       - name: Scan mail image
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@6abccf398f78b4c337599c0656f933d91efb91a0
         with:
           image-ref: ecc-crm-mail:release
           severity: HIGH,CRITICAL
@@ -79,7 +79,7 @@ jobs:
           scanners: vuln
           ignore-unfixed: false
       - name: Scan backup image
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@6abccf398f78b4c337599c0656f933d91efb91a0
         with:
           image-ref: ecc-crm-backup:release
           severity: HIGH,CRITICAL
@@ -87,7 +87,7 @@ jobs:
           scanners: vuln
           ignore-unfixed: false
       - name: Scan antivirus image
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@6abccf398f78b4c337599c0656f933d91efb91a0
         with:
           image-ref: ecc-crm-clamav:release
           severity: HIGH,CRITICAL
@@ -95,7 +95,7 @@ jobs:
           scanners: vuln
           ignore-unfixed: false
       - name: Scan proxy image
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@6abccf398f78b4c337599c0656f933d91efb91a0
         with:
           image-ref: caddy:2-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f
           severity: HIGH,CRITICAL
